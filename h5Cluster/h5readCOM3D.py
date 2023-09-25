@@ -17,7 +17,7 @@ import time
 
 ##################################################
 
-from h5readCluster import h5readCluster
+from .h5readCluster import h5readCluster
 
 def size(aa):
     radius = 0.1*2.24*(aa **0.392)

@@ -15,7 +15,7 @@ import sys
 
 ##################################################
 
-from h5readDensity import h5readDensity
+from .h5readDensity import h5readDensity
 
 class h5readFRAP( h5readDensity ):
     # self: filename, traj, self.limrec, rec, types_str, types_num, xbox, zbox, sizelist, phaselim

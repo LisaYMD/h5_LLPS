@@ -17,7 +17,7 @@ import time
 
 ##################################################
 
-from h5readCluster import h5readCluster
+from .h5readCluster import h5readCluster
 
 def size(aa):
     radius = 0.1*2.24*(aa **0.392)
@@ -364,14 +364,7 @@ class h5readCluster3D( h5readCluster ):
             largest_trans[t,2] = largest_rg[0]
         np.savetxt(outname, largest_trans)
         return None
-
-    def output_cluster(self, outname, duration):
-        largest_trans = np.zeros([duration, 3])
-        for t in tqdm(range(0, duration)):
-            molecule = super().whole_clustering(t)
-            cluster = np.unique(molecule[:,4])
-            for c in range(0, len(cluster)):
-                    
+               
     def output_particle_largestcluster(self, outname, duration, mol, mol_str, part_in_mol):
         largest_trans = np.zeros([duration,3])
         for t in tqdm(range(0, duration)):

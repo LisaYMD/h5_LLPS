@@ -13,7 +13,7 @@ import sys
 
 ##################################################
 
-from h5readDensity import h5readDensity
+from .h5readDensity import h5readDensity
 
 class h5readMSD( h5readDensity ):
     # self: filename, traj, limrec, rec, types_str, types_num, xbox, zbox, sizelist, phaselim

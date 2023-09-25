@@ -5,7 +5,7 @@ import itertools
 import readdy
 from pint import UnitRegistry
 import h5py
-from h5readTraj import h5readTraj
+from .h5readTraj import h5readTraj
 from tqdm import tqdm
 
 # calculation of radius of each globular protein/domain
