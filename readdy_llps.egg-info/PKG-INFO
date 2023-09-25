@@ -1,0 +1,7 @@
+Metadata-Version: 2.1
+Name: readdy-llps
+Version: 0.0.1
+Summary: small packages for reading LLPS synapse simulation of readdy h5 file
+Author: LisaYMD
+License: MIT
+Classifier: Development Status :: 1 - Planning
