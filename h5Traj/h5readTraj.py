@@ -169,7 +169,7 @@ class h5readTraj:
         ckpt.convert_to_xyz(particle_radii=radii_dict, color_ids=color_dict, draw_box=True)
         return None
 
-    def radial_distribution_function(self, part_str, part_count, duration):
+    def radial_distribution_function(self, part_str, part_count, inital_time, duration):
         max_radius = 50
         radius_slice = 0.1
         radius_lists = np.arange(0, max_radius, radius_slice)
@@ -179,7 +179,7 @@ class h5readTraj:
         hist_accuml = np.zeros(radius_lists.shape[0]-1)
         hist_accuml_partave = np.zeros(radius_lists.shape[0]-1)
         hist_accuml_timeave = np.zeros(radius_lists.shape[0]-1)
-        for tim in tqdm(range(int(10000-duration),10000)):
+        for tim in tqdm(range(initial_time,int(initial_time+duration))):
             # make a group with the same particles
             part_num = self.types_num[self.types_str.index(part_str)]
             for p in range(0, 4):
@@ -225,10 +225,65 @@ class h5readTraj:
                 hist_accuml_partave += hist_accuml/len(new_part)
             hist_accuml_timeave += hist_accuml_partave/duration
         gr = hist_accuml_timeave/(4*radius_slice*np.pi*(radius_lists[1:])**2)
+        return radius_lists[1:], gr
+
+    def plot_RDF(self, part_str, part_count, start, duration):
+        rad, gr = self.radial_distribution_function(self, part_str, part_count, start, duration)
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.plot(radius_lists[1:], gr)
+        ax.plot(rad, gr)
         plt.savefig("radial_distribution_"+part_str+".png")
         plt.show()
-        return gr
+        return None
+
+    def relative_distance_from_COM(self, part_str, part_count, tim, com, max_radius=100, radius_slice=0.1):
+        radius_lists = np.arange(0, max_radius, radius_slice)
+        coor_list = [-1, 0, 1]
+        mol_size = self.size_list[self.types_str.index(part_str)]
+        hist_accuml = np.zeros(radius_lists.shape[0]-1)
+        hist_accuml_partave = np.zeros(radius_lists.shape[0]-1)
+        # make a group with the same particles
+        part_num = self.types_num[self.types_str.index(part_str)]
+        for p in range(0, 4):
+            if part_str in self.mol_detail[p]:
+                mol_count = self.mcount[p]
+        new_part = np.zeros([int(mol_count*part_count), 4])
+        count = 0
+        for l in range(self.limrec[tim,0], self.limrec[tim,1]):
+            if self.rec[l][0] == part_num:
+                new_part[count,0] = self.rec[l][1]
+                new_part[count,1:4] = self.rec[l][3]
+                count += 1
+        assert count == mol_count*part_count
+        # measure the distance between them from one representative particle
+        for p in range(0, len(new_part)):
+            another_part = np.zeros([new_part.shape[0]*27, new_part.shape[1]])
+            for x_ext in range(0, len(coor_list)):
+                for y_ext in range(0, len(coor_list)):
+                    for z_ext in range(0, len(coor_list)):
+                        c = int(x_ext + y_ext*3 + z_ext*9)
+                        start = int(c*len(new_part))
+                        end = int((c+1)*len(new_part))
+                        another_part[start:end,:] = new_part.copy()
+                        another_part[start:end,1] += coor_list[x_ext]*self.xbox
+                        another_part[start:end,2] += coor_list[y_ext]*self.xbox
+                        another_part[start:end,3] += coor_list[z_ext]*self.zbox
+            center_of_mass = np.zeros([1,4])
+            center_of_mass[0,1:4] = com
+            dist = another_part[:,:]-center_of_mass
+            distance = np.zeros([dist.shape[0], 2])
+            distance[:,0] = dist[:,0]
+            distance[:,1] = np.sqrt(dist[:,1]**2+dist[:,2]**2+dist[:,3]**2)
+            dist_final = np.zeros(int(distance.shape[0]/27))
+            for d in range(0, len(dist_final)):
+                target = distance[np.any(np.array([distance[:,0]])==distance[d,0], axis=0)]
+                dist_final[d] = np.amin(target[:,1])
+            for r in range(0, len(radius_lists)-1):
+                minlim = radius_lists[r] - mol_size
+                maxlim = radius_lists[r+1] + mol_size
+                in_range = dist_final[(dist_final>radius_lists[r]-mol_size)&(dist_final<radius_lists[r+1]+mol_size)]
+                hist_accuml[r] = len(in_range)
+            hist_accuml_partave += hist_accuml/len(new_part)
+        relative_distance = hist_accuml_partave
+        return radius_lists[1:], relative_distance
 

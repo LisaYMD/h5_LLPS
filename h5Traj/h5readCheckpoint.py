@@ -245,7 +245,6 @@ class h5readCheckpoint(h5readTraj):
         ckpt.convert_to_xyz(particle_radii=radii_dict, color_ids=color_dict, draw_box=True) 
         return None
 
-    ### NOW EDITING ### 
     def checkpointToTraj(self):
         ckpt_list = sorted(os.listdir(self.dir_name))
         point1 = int(ckpt_list[1][11:-3]) ## strictly speaking, this is not correct
