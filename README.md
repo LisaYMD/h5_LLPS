@@ -1,4 +1,4 @@
-# readdy_LLPS
+# h5_LLPS
 Small python packages for reading LLPS synapse simulation of readdy h5 file
 
 ## how to install/uninstall
