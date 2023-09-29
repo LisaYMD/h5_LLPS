@@ -216,7 +216,7 @@ class h5readCOM3D( h5readCluster ):
         plt.show()
         return None
 
-    def smooth_projection(self, start, duration, target_lists, projection="z"):
+    def smooth_projection(self, start, duration, target_lists, color_lists, pngname, projection="z"):
         # apply distribution to distance_distribution in each timestep
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -231,9 +231,9 @@ class h5readCOM3D( h5readCluster ):
                         distrib_smoothed[:,tl] += distrib[d][1]
         for tl in range(0, len(target_lists)):
             hist = distrib_smoothed[:,tl]
-            ax.plot(bins[:-1], hist/np.sum(hist), label=target_lists[tl])
+            ax.plot(bins[:-1], hist/np.sum(hist), label=target_lists[tl], color=color_lists[tl])
         ax.legend()
-        plt.savefig("projection_to_Z_smoothed.png")
+        plt.savefig(pngname)
         plt.show()
         return None
 
@@ -254,7 +254,7 @@ class h5readCOM3D( h5readCluster ):
         plt.show()
         return None
 
-    def smooth_slice(self, start, duration, target_lists, projection="z"):
+    def smooth_slice(self, start, duration, target_lists, color_lists, pngname, projection="z"):
         # apply distribution to distance_distribution in each timestep
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -269,9 +269,9 @@ class h5readCOM3D( h5readCluster ):
                         distrib_smoothed[:,tl] += distrib[d][1]
         for tl in range(0, len(target_lists)):
             hist = distrib_smoothed[:,tl]
-            ax.plot(bins[:-1], hist/np.sum(hist), label=target_lists[tl])
+            ax.plot(bins[:-1], hist/np.sum(hist), label=target_lists[tl], color=color_lists[tl])
         ax.legend()
-        plt.savefig("slice_of_Z_smoothed3.png")
+        plt.savefig(pngname)
         plt.show()
         return None
 

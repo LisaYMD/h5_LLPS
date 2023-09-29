@@ -224,7 +224,6 @@ class h5readDensity:
         ax.plot(psd95_bins[:-1]+5*0.5, psd95_hist, color="blue")
         ax.plot(nmdar_bins[:-1]+5*0.5, nmdar_hist, color="magenta")
         ax.plot(camk2_bins[:-1]+5*0.5, camk2_hist, color="green")
-        ax.set_ylim(0, 15)
         plt.savefig(str(picname))
         plt.show()
         return None

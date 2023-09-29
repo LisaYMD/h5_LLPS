@@ -169,7 +169,7 @@ class h5readTraj:
         ckpt.convert_to_xyz(particle_radii=radii_dict, color_ids=color_dict, draw_box=True)
         return None
 
-    def radial_distribution_function(self, part_str, part_count, inital_time, duration):
+    def radial_distribution_function(self, part_str, part_count, initial_time, duration):
         max_radius = 50
         radius_slice = 0.1
         radius_lists = np.arange(0, max_radius, radius_slice)
