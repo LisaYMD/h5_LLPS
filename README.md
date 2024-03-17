@@ -10,5 +10,6 @@ python3 setup.py develop -u # uninstall
 ## how to use
 Import libraries by writing an example below.
 ```
-from h5Traj import h5readCheckpoint
+from h5Traj import cluster.h5readCluster
+from h5Checkpoint import h5readCheckpoint
 ```

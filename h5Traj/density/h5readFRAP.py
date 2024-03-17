@@ -157,6 +157,3 @@ class h5readFRAP( h5readDensity ):
         plt.show()
         return None
 
-#result = h5readFRAP("strictampar_cutoff1.6_2.h5")
-
-

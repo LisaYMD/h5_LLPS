@@ -17,16 +17,11 @@ import time
 
 ##################################################
 
-from .h5readCluster import h5readCluster
+from .h5readCluster2D import h5readCluster2D
 
-def size(aa):
-    radius = 0.1*2.24*(aa **0.392)
-    return radius 
-
-class h5readCOM3D( h5readCluster ): 
+class h5readCOM2D( h5readCluster2D ): 
     def __init__(self, filename):
         super().__init__(filename)
-        self.mass_list = None 
         return None
 
     def detect_COM(self, cluster):
@@ -36,11 +31,11 @@ class h5readCOM3D( h5readCluster ):
         # check if the cluster position is beyond border
         # cluster : [globalnum, xpos, ypos, zpos, class_assign, types_num] * number of clusters
         resid_area = np.zeros(len(cluster))
-        # residential area: [0, 1, 2, 3, 4, 10, 20, 30, 40, 100, 200, 300, 400] 
+        # residential area: [0, 1, 2, 3, 4, 10, 20, 30, 40]
         for c in range(0, len(cluster)):
             # examine the residential area of every particles
             area_num = 0
-            for n in range(0,3):
+            for n in range(0,2):
                 if cluster[c,int(n+1)] < leftlim:
                     num_x = 1
                 elif cluster[c,int(n+1)] > rightlim:
@@ -53,9 +48,8 @@ class h5readCOM3D( h5readCluster ):
             # calcuate Rg normally
             xcent = np.mean(cluster[:,1])
             ycent = np.mean(cluster[:,2])
-            zcent = np.mean(cluster[:,3])
-            rg = np.sqrt(np.mean((cluster[:,1]-xcent)**2+(cluster[:,2]-ycent)**2+(cluster[:,3]-zcent)**2))
-            centers_info = np.array([xcent, ycent, zcent, rg])
+            rg = np.sqrt(np.mean((cluster[:,1]-xcent)**2+(cluster[:,2]-ycent)**2))
+            centers_info = np.array([xcent, ycent, rg])
         else:
             # set original residential area
             area = np.unique(resid_area)
@@ -75,20 +69,12 @@ class h5readCOM3D( h5readCluster ):
                 else:
                     y_border = bins[np.where(hist==min(hist))[0][0]]
                 cluster[np.where(cluster[:,2]>y_border), 2] -= self.xbox
-            if np.any((area//100)%10==1)==True and np.any((area//100)%10==2)==True:
-                # take a projection toward z axis
-                hist, bins = np.histogram(cluster[:,3], bins=np.arange(-self.zbox/2, self.zbox/2, int(self.zbox/10)))
-                if np.any(hist==0) == True:
-                    z_border = bins[np.where(hist==0)[0][0]]
-                else:
-                    z_border = bins[np.where(hist==min(hist))[0][0]]
-                cluster[np.where(cluster[:,3]>z_border), 3] -= self.zbox
             xcent = np.mean(cluster[:,1])
             ycent = np.mean(cluster[:,2])
             zcent = np.mean(cluster[:,3])
-            rg = np.sqrt(np.mean((cluster[:,1]-xcent)**2+(cluster[:,2]-ycent)**2+(cluster[:,3]-zcent)**2))
-            center_info = np.array([xcent, ycent, zcent, rg])
-        return center_info, cluster
+            rg = np.sqrt(np.mean((cluster[:,1]-xcent)**2+(cluster[:,2]-ycent)**2))
+            centers_info = np.array([xcent, ycent, zcent, rg])
+        return centers_info, cluster
 
     def detect_maximum(self, tim):
         molecules = super().whole_clustering(tim)
@@ -187,8 +173,10 @@ class h5readCOM3D( h5readCluster ):
             specific_particles = target_rearranged[np.any(np.array([target_rearranged[:,5]])==p, axis=0),:] 
             if projection == "x":
                 projected = specific_particles[:,1]-center_of_mass[0]
+                target_particles = specific_particles[np.any((np.array([np.abs(specific_particles[:,2]-center_of_mass[1])])<small_slice)&(np.array([np.abs(specific_particles[:,3]-center_of_mass[2])])<small_slice), axis=0),:] 
             elif projection == "y":
                 projected = specific_particles[:,2]-center_of_mass[1]
+                target_particles = specific_particles[np.any((np.array([np.abs(specific_particles[:,3]-center_of_mass[2])])<small_slice)&(np.array([np.abs(specific_particles[:,1]-center_of_mass[0])])<small_slice), axis=0),:] 
             elif projection == "z":
                 target_particles = specific_particles[np.any((np.array([np.abs(specific_particles[:,2]-center_of_mass[1])])<small_slice)&(np.array([np.abs(specific_particles[:,1]-center_of_mass[0])])<small_slice), axis=0),:] 
                 projected = target_particles[:,3]-center_of_mass[2]
@@ -199,8 +187,8 @@ class h5readCOM3D( h5readCluster ):
             distrib.append([p, hist])
         return distrib, bins
 
-    def plot_projection(self, tim, specific=True, projection="z"):
-        distrib, bins = self.xyz_projection(tim, "z")
+    def plot_projection(self, tim, specific=True, projection="x"):
+        distrib, bins = self.xyz_projection(tim, "x")
         fig = plt.figure()
         ax = fig.add_subplot(111)
         for d in range(0, len(distrib)):
@@ -224,7 +212,7 @@ class h5readCOM3D( h5readCluster ):
         distrib, bins = np.histogram(np.ones(25)*(-1), bins=np.arange(-plot_range, plot_range, int(plot_range/25)))
         distrib_smoothed = np.zeros([len(distrib), len(target_lists)])
         for tim in tqdm(range(start, start+duration)):
-            distrib, bins = self.xyz_projection(tim)
+            distrib, bins = self.xyz_projection(tim, projection)
             for d in range(0, len(distrib)):
                 for tl in range(0, len(target_lists)):
                     if self.types_str[self.types_num.index(distrib[d][0])] == target_lists[tl]:
@@ -238,7 +226,7 @@ class h5readCOM3D( h5readCluster ):
         return None
 
     def plot_slice(self, tim, specific=True, projection="z"):
-        distrib, bins = self.xyz_slice(tim, "z")
+        distrib, bins = self.xyz_slice(tim, projection)
         fig = plt.figure()
         ax = fig.add_subplot(111)
         for d in range(0, len(distrib)):
@@ -262,7 +250,7 @@ class h5readCOM3D( h5readCluster ):
         distrib, bins = np.histogram(np.ones(25)*(-1), bins=np.arange(-plot_range, plot_range, int(plot_range/25)))
         distrib_smoothed = np.zeros([len(distrib), len(target_lists)])
         for tim in tqdm(range(start, start+duration)):
-            distrib, bins = self.xyz_slice(tim)
+            distrib, bins = self.xyz_slice(tim, projection)
             for d in range(0, len(distrib)):
                 for tl in range(0, len(target_lists)):
                     if self.types_str[self.types_num.index(distrib[d][0])] == target_lists[tl]:
@@ -270,6 +258,8 @@ class h5readCOM3D( h5readCluster ):
         for tl in range(0, len(target_lists)):
             hist = distrib_smoothed[:,tl]
             ax.plot(bins[:-1], hist/np.sum(hist), label=target_lists[tl], color=color_lists[tl])
+            newarray = np.vstack([[bins[:-1]], [hist/np.sum(hist)]])
+            np.savetxt("data"+pngname+target_lists[tl]+".dat", newarray.T)
         ax.legend()
         plt.savefig(pngname)
         plt.show()
@@ -301,18 +291,4 @@ class h5readCOM3D( h5readCluster ):
         plt.savefig("clustering3_"+mol_str+"in"+mol+"at"+str(tim)+".png")
         plt.show()
         return None
-
-
-#result = h5readCOM3D("PSD4_slab_inactivated.h5")
-#result.draw_snapshot(10000, "whole")
-#result.plot_distribution(9000, True)
-#result.plot_projection(10000, True, "z")
-#result.plot_slice(10000, True, "z")
-#t_lists = ["A", "F", "G", "M"]
-#result.smooth_distribution(9600, 100, t_lists)
-#result.smooth_projection(9600, 100, t_lists)
-#result.smooth_slice(8000, 2000, t_lists)
-#result.output_largestcluster("output_cluster.dat", 10000, "AMPAR", "A", 1)
-#print(result.whole_clustering(5000)[:,5])
-
 
