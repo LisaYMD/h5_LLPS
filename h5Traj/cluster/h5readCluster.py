@@ -86,5 +86,5 @@ class h5readCluster( h5readTraj ):
                 particle[np.any(np.array([particle[:,0]])==particle_current[amp], axis=0), 4] = clust_label
             clust_label += 1
             current += int(progress)+1
-        return particle    
+        return particle 
 

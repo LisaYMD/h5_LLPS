@@ -382,14 +382,3 @@ class h5readMSD( h5readDensity ):
         plt.show()
         return None
 
-
-#result = h5readMSD("strictampar_cutoff1.6_2.h5")
-#print(result.n_ampar)
-#result.calc_dilute_withxyz(5000)
-#amprec, psdrec, nmdrec, camrec = result.convert_trajectory(3)
-#print(amprec.shape, camrec.shape)
-#result.track_trajectory(50,5)
-#_, _, _, amp, _, _, _ = result.variables
-#print(amp)
-#result.calculate_msd(50)
-#result.plot_msd()

@@ -25,16 +25,16 @@ class h5readTraj:
         self.types_str = [types[k][0].decode() for k in range(0, len(types))] 
         self.types_num = [types[k][1] for k in range(0, len(types))]
         self.diff_const = [types[k][2] for k in range(0, len(types))]
-        info = np.atleast_1d(f['readdy']['config']['general'][...])[0].decode()
+        self.info = json.loads(np.atleast_1d(f['readdy']['config']['general'][...])[0].decode())
         self.limrec = traj['limits']
         self.rec = traj['records']
         self.topo = f['readdy']['observables']['topologies']
         self.limparts = self.topo['limitsParticles']
         self.parts = self.topo['particles'] 
-        ini = self.rec[self.limrec[0, 0]:self.limrec[0, 1]] 
-        boxinfo = info[(info.find('"box_size":[')+len(str('"box_size":['))):(info.find("],"))].split(",")
-        self.xbox = np.array(boxinfo).astype("float")[0]
-        self.zbox = np.array(boxinfo).astype("float")[2]
+        ini = self.rec[self.limrec[0, 0]:self.limrec[0, 1]]
+        self.xbox = self.info["box_size"][0]
+        self.ybox = self.info["box_size"][1]
+        self.zbox = self.info["box_size"][2]
         self.size_list = [] # read from setting file
         self.color_list = []
         self.dimension = dim
@@ -51,6 +51,7 @@ class h5readTraj:
         else:
             print("Unexpected dimension type")
         self.mlists =  settings["molecule"]
+        self.mol_in_parts = []
         self.molcompose = []
         for l in self.types_str:
             for m in range(0, len(self.mlists)):
@@ -59,10 +60,11 @@ class h5readTraj:
                     self.size_list.append(settings["size"][self.mlists[m]][cand.index(l)])
                     self.color_list.append(settings["color"][self.mlists[m]][cand.index(l)])
                     break
-        assert len(self.types_str) == len(self.size_list)
+        #assert len(self.types_str) == len(self.size_list)
         self.molcount = np.zeros(len(self.mlists))
         self.molchar = []
         for mol in range(0, len(self.mlists)):
+            self.mol_in_parts.append(settings["composition"][self.mlists[mol]])
             self.molcompose.append(settings["particle_type"][self.mlists[mol]])
             char = settings["particle_type"][self.mlists[mol]][0]
             if char in self.types_str:
@@ -140,7 +142,7 @@ class h5readTraj:
         return radius_lists[1:], gr
 
     def plot_RDF(self, part_str, part_count, start, duration):
-        rad, gr = self.radial_distribution_function(self, part_str, part_count, start, duration)
+        rad, gr = self.radial_distribution_function(part_str, part_count, start, duration)
         fig = plt.figure()
         ax = fig.add_subplot(111)
         ax.plot(rad, gr)
@@ -284,7 +286,7 @@ class h5readTraj:
         return radius_lists[1:], gr
 
 
-    def relative_distance_from_COM(self, part_str, part_count, tim, com, max_radius=100, radius_slice=0.1):
+    def relative_distance_from_COM(self, part_str, part_count, tim, com, max_radius=100, radius_slice=0.1, output_distance=True):
         radius_lists = np.arange(0, max_radius, radius_slice)
         coor_list = [-1, 0, 1]
         mol_size = self.size_list[self.types_str.index(part_str)]
@@ -334,5 +336,33 @@ class h5readTraj:
                 hist_accuml[r] = len(in_range)
             hist_accuml_partave += hist_accuml/len(new_part)
         relative_distance = hist_accuml_partave
-        return radius_lists[1:], relative_distance
+        if output_distance == True:
+            return  dist_final
+        else:
+            return radius_lists[1:], relative_distance
 
+    def relative_distance_from_COM_2D(self, particle_pos_lists, com):
+        coor_list = [-1, 0, 1]
+        # make a group with the same particles
+        new_part = particle_pos_lists # [particle_global_no, xpos, ypos] * particle amount
+        # measure the distance between them from one representative particle
+        another_part = np.zeros([new_part.shape[0]*9, new_part.shape[1]])
+        for x_ext in range(0, len(coor_list)):
+            for y_ext in range(0, len(coor_list)):
+                c = int(x_ext + y_ext*3)
+                start = int(c*len(new_part))
+                end = int((c+1)*len(new_part))
+                another_part[start:end,:] = new_part.copy()
+                another_part[start:end,1] += coor_list[x_ext]*self.xbox
+                another_part[start:end,2] += coor_list[y_ext]*self.ybox
+        center_of_mass = np.zeros([1,3])
+        center_of_mass[0,1:3] = com
+        dist = another_part[:,:]-center_of_mass
+        distance = np.zeros([dist.shape[0], 2])
+        distance[:,0] = dist[:,0]
+        distance[:,1] = np.sqrt(dist[:,1]**2+dist[:,2]**2)
+        dist_final = np.zeros(int(distance.shape[0]/9))
+        for d in range(0, len(dist_final)):
+            target = distance[np.any(np.array([distance[:,0]])==distance[d,0], axis=0)]
+            dist_final[d] = np.amin(target[:,1])
+        return dist_final

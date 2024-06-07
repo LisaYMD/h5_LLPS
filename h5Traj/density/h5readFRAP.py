@@ -128,7 +128,7 @@ class h5readFRAP( h5readDensity ):
         sub = np.mean(oldamp_center-newamp_center, axis=1)
         return sub
 
-    def frap_trajectory(self):
+    def frap_trajectory(self, fig_title):
         plt.rcParams["font.family"] = "Arial"
         plt.rcParams["font.size"] = 9
         plt.rcParams["xtick.direction"] = "in"
@@ -153,7 +153,7 @@ class h5readFRAP( h5readDensity ):
         ax.set_ylabel(r"$\Delta Z $ (nm)", fontsize=11)
         ax.plot(np.arange(0, len(subtraction))*8000*0.25/1e3, subtraction, color=palette[5])
         ax.axhline(y=0, linestyle="dashed", color=palette[6])
-        plt.savefig("frap_subtraction.svg")
+        plt.savefig(fig_title)
         plt.show()
         return None
 

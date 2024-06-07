@@ -73,7 +73,7 @@ class h5readCOM2D( h5readCluster2D ):
             ycent = np.mean(cluster[:,2])
             zcent = np.mean(cluster[:,3])
             rg = np.sqrt(np.mean((cluster[:,1]-xcent)**2+(cluster[:,2]-ycent)**2))
-            centers_info = np.array([xcent, ycent, zcent, rg])
+            centers_info = np.array([xcent, ycent, rg])
         return centers_info, cluster
 
     def detect_maximum(self, tim):
@@ -89,6 +89,21 @@ class h5readCOM2D( h5readCluster2D ):
         target_cluster = molecules[np.any(np.array([molecules[:,4]])==cluster_lists[target], axis=0), :]
         center_of_mass, target_rearranged = self.detect_COM(target_cluster)
         return center_of_mass, target_rearranged
+
+    # WARNING: Now editing. Check the plot of COM if this program works properly.
+    def detect_all(self, tim):
+        molecules = super().whole_clustering(tim)
+        cluster_lists = np.unique(molecules[:,4])
+        cluster_list = []
+        cluster_dict = {}
+        cluster_com = {}
+        for c in range(0, len(cluster_lists)):
+            cluster_list.append(cluster_lists[c])
+            target_cluster = molecules[np.any(np.array([molecules[:,4]])==cluster_lists[c],axis=0),:]
+            center_of_mass, target_rearranged = self.detect_COM(target_cluster)
+            cluster_dict[str(cluster_lists[c])] = target_rearranged
+            cluster_com[str(cluster_lists[c])] = center_of_mass
+        return cluster_list, cluster_dict, cluster_com
 
     def distance_distribution(self, tim):
         center_of_mass, target_rearranged = self.detect_maximum(tim)
@@ -259,7 +274,8 @@ class h5readCOM2D( h5readCluster2D ):
             hist = distrib_smoothed[:,tl]
             ax.plot(bins[:-1], hist/np.sum(hist), label=target_lists[tl], color=color_lists[tl])
             newarray = np.vstack([[bins[:-1]], [hist/np.sum(hist)]])
-            np.savetxt("data"+pngname+target_lists[tl]+".dat", newarray.T)
+            #np.savetxt("data"+pngname+target_lists[tl]+".dat", newarray.T)
+            np.savetxt("distrib"+pngname+target_lists[tl]+".dat", hist)
         ax.legend()
         plt.savefig(pngname)
         plt.show()

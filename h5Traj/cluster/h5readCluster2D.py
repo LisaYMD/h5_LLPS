@@ -335,6 +335,9 @@ class h5readCluster2D( h5readCluster ):
         ax.set_ylim(-self.xbox/2, self.xbox/2)
         ax.set_aspect("equal")
         ax.scatter(oldcl[:,1], oldcl[:,2], s=20)
+        # if you want to annotate each cluster
+        #for i, txt in enumerate(oldcl[:,4].flatten()):
+        #    ax.annotate(txt, (oldcl[i,1], oldcl[i,2]))
         for c in range(0, len(cents[:,0])):
             ax.add_patch(patches.Circle(xy=(cents[c,0], cents[c,1]), radius=cents[c,2], fc='orange', ec='black', alpha=0.2))
             ax.text(cents[c,0], cents[c,1], str(int(cents[c,3])), size=20, horizontalalignment="center", verticalalignment="center")
@@ -360,5 +363,20 @@ class h5readCluster2D( h5readCluster ):
             largest_trans[t,1] = largest[0]
             largest_trans[t,2] = largest_rg[0]
         np.savetxt(outname, largest_trans)
+        return None
+
+    def allcluster_per_molecule(self, outname, tim):
+        saved = np.zeros([int(sum(self.molcount)), 5]) #[clusterNum, moltype, x, y, z, centx, centy, centz, cent_rad]
+        start = 0
+        for m in range(0, len(self.mlists)):
+            oldcl = super().particle_clustering(tim, self.mlists[m], self.molchar[m], 1)
+            #cents, _, _ = self.true_particle_clustering(tim, self.mlists[m], self.molchar[m], 1)
+            #print(np.unique(oldcl[:,4]).shape, cents.shape)
+            saved[int(start):int(start+self.molcount[m]),0] = oldcl[:,4] # classNo
+            saved[int(start):int(start+self.molcount[m]),1] = m # moltype(0, 1, 2, 3)
+            saved[int(start):int(start+self.molcount[m]),2:5] = oldcl[:,:3] # GlobalNo, xpos, ypos
+            #saved[start:start+int(self.molcount[m]),5:] = cents[:,:]
+            start += self.molcount[m]
+        np.savetxt(outname, saved)
         return None
 

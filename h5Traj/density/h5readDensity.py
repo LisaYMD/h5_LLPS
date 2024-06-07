@@ -121,7 +121,7 @@ class h5readDensity( h5readTraj ):
         print("CALCULATION FINISHED")
         print("====================")
         return None
-    
+        
     # drawing picture 
     def plot_dilute(self, tim, sep, picname):
         self.calc_dilute(tim, separate=sep)
@@ -134,9 +134,9 @@ class h5readDensity( h5readTraj ):
         # draw particle number histogram
         for p in range(0, len(self.mlists)):
             molrec3 = molrec[p][np.abs(molrec[p])<self.zbox/9]
-            assert len(molrec3) == self.molcount[p]
+            #assert len(molrec3) == self.molcount[p]
             hist, bins = np.histogram(molrec3, bins=200, range=(-self.zbox/2, self.zbox/2))
-            ax.plot(bins[:-1]+5*0.5, hist, color="black")
+            ax.plot(bins[:-1]+5*0.5, hist)
         if sep == True:
             for c in range(0, len(condensed_phase)):
                 ax.axvspan(condensed_phase[c][0], condensed_phase[c][1], color = "orange", alpha=0.1)
@@ -144,7 +144,6 @@ class h5readDensity( h5readTraj ):
             x = np.arange(-self.zbox/2, self.zbox/2, self.phaselim)
             ax1.fill_between(x, ruiseki, np.zeros(len(x)), alpha=0.3)
             ax1.set_xlim(-self.zbox/2, self.zbox/2)
-            ax1.set_ylim(0, 110)
         ax.set_xlim(-self.zbox/2, self.zbox/2)
         plt.savefig(str(picname))
         plt.show()
@@ -176,4 +175,19 @@ class h5readDensity( h5readTraj ):
         ani.save(animname, writer="pillow")
         plt.show()
         return print("Movie Generation Completed")
+
+    def output_moltraj(self, tim):
+        x = np.arange(-self.zbox/2, self.zbox/2, self.phaselim)
+        self.calc_dilute(tim, separate=True)
+        ruiseki, phaselists, condensed_phase, molrec = self.variables
+        # draw particle number histogram
+        ampar_hist, ampar_bins = np.histogram(molrec[0], bins=200, range=(-self.zbox/2, self.zbox/2))
+        psd95_hist, psd95_bins = np.histogram(molrec[1], bins=200, range=(-self.zbox/2, self.zbox/2))
+        nmdar_hist, nmdar_bins = np.histogram(molrec[2], bins=200, range=(-self.zbox/2, self.zbox/2))
+        camk2_hist, camk2_bins = np.histogram(molrec[3], bins=200, range=(-self.zbox/2, self.zbox/2))
+        #new_ampar_bins = ampar_bins[:-1]+5*0.5
+        #new_psd95_bins = psd95_bins[:-1]+5*0.5
+        #new_nmdar_bins = nmdar_bins[:-1]+5*0.5
+        #new_camk2_bins = camk2_bins[:-1]+5*0.5
+        return condensed_phase, ampar_bins[:-1]+5*0.5, ampar_hist, psd95_hist, nmdar_hist, camk2_hist 
 
