@@ -7,6 +7,8 @@ import h5py
 import hdf5plugin
 import itertools
 from tqdm import tqdm
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import connected_components
 
 ############### CAUTION:BEFORE USE ###############
 
@@ -30,6 +32,7 @@ from tqdm import tqdm
 # 
 
 from .. import h5readTraj
+np.set_printoptions(threshold=300)
 
 class h5readEdge( h5readTraj ):
     def __init__(self, filename, dim):
@@ -65,14 +68,113 @@ class h5readEdge( h5readTraj ):
             i += 1
         return global_edgelist
 
-    def global_numberlists(self):
+    def global_numberlists(self, tim):
         molecule_global = {} # dict, example: "A1": [lists]
-        for j in range(self.limrec[0,0], self.limrec[0,1]):
+        for j in range(self.limrec[tim,0], self.limrec[tim,1]):
             temp_mol = self.types_str[self.types_num.index(int(self.rec[j][0]))] # search molecule type
             if temp_mol not in molecule_global:
-                molecule_global[temp_mol] =[]
+                molecule_global[temp_mol] = []
             molecule_global[temp_mol].append(self.rec[j][1]) # add global number 
         return molecule_global
+
+    def particle_adjacent_matrix(self, edges):
+        most = max(np.ravel(edges))
+        adj = np.zeros([int(most+1), int(most+1)])
+        for e in range(0, len(edges)):
+            adj[int(edges[e,0]), int(edges[e,1])] = 1
+            adj[int(edges[e,1]), int(edges[e,0])] = 1
+        assert np.array_equal(adj, adj.T)
+        return adj
+
+    def plot_part_adj(self, edges):
+        adj = self.particle_adjacent_matrix(edges)
+        plt.imshow(adj)
+        plt.show()
+        return None
+
+    def adj_to_edges(self, adj):
+        edgelist = []
+        for i in range(0, len(adj)):
+            for j in range(0, len(adj)):
+                if adj[i,j] == 1:
+                    edgelist.append(np.array([i,j]))
+        edgelist = np.array(edgelist)
+        return edgelist
+
+    # assign global numbers to each molecules
+    def global_protlists(self):
+        edge_initial = self.connected_edge(0)
+        adjacent_matrix = self.particle_adjacent_matrix(edge_initial)
+        glonum = self.global_numberlists(0)
+        specifics_a = ["B1","N01", "N10", "N11"]
+        specifics_b = ["D11", "D12", "D13", "K1"]
+        s_glonum_a, s_glonum_b = [], []
+        # remove specifics
+        for s in specifics_a:
+            if s in glonum.keys():
+                s_glonum_a.extend(glonum[s])
+        for r in specifics_b:
+            if r in glonum.keys():
+                s_glonum_b.extend(glonum[r])
+        for i, j in itertools.product(s_glonum_a, s_glonum_b):
+            adjacent_matrix[i,j] = 0
+            adjacent_matrix[j,i] = 0
+        # get connected components
+        csr = csr_matrix(adjacent_matrix)
+        n_comp, labels = connected_components(csgraph=csr, directed=False, return_labels=True)
+        assert n_comp == np.sum(self.molcount)
+        protdict, prottype = {}, {}
+        for lab in range(0, len(labels)):
+            if labels[lab] not in protdict:
+                protdict[labels[lab]] = []
+            protdict[labels[lab]].append(lab) # add global number 
+        for pro in protdict.keys():
+            for m in range(0, len(self.molchar)):
+                tag = glonum[self.molchar[m]]
+                if len(set(protdict[pro])&set(tag)) != 0:
+                    if self.mlists[m] not in prottype:
+                        prottype[self.mlists[m]] = []
+                    prottype[self.mlists[m]].append(pro)
+        for m in range(0, len(self.mlists)):
+            assert len(prottype[self.mlists[m]]) == self.molcount[m]
+        return n_comp, labels, protdict, prottype, adjacent_matrix
+
+    # retrieve connectivity of each molecules
+    def protein_adjacent_matrix(self, tim):
+        edge_current = self.connected_edge(tim)
+        n_comp, labels, protdict, prottype, adj_native = self.global_protlists()
+        glonum_current = self.global_numberlists(tim)
+        adj_current = self.particle_adjacent_matrix(edge_current)
+        adj_subtract = adj_current - adj_native
+        protein_adj = np.zeros([n_comp, n_comp])
+        bondindex = np.array(np.where(adj_subtract>0))
+        if len(bondindex) != 0:
+            for b in range(0, bondindex.shape[1]):
+                protein_adj[labels[bondindex[0,b]], labels[bondindex[1,b]]] += 1
+        assert np.array_equal(protein_adj, protein_adj.T)
+        # align by molecular types
+        #print(protdict, prottype)
+        new_protein_adj = np.zeros((protein_adj.shape[0], protein_adj.shape[1]))
+        binding = np.array(np.nonzero(protein_adj), dtype=int)
+        index_temp = []
+        for mol in self.mlists:
+            index_temp.extend(prottype[mol])
+        for b in range(0, binding.shape[1]):
+            molnum1 = index_temp.index(binding[0,b])
+            molnum2 = index_temp.index(binding[1,b])
+            new_protein_adj[molnum1, molnum2] = 1
+            new_protein_adj[molnum2, molnum1] = 1
+        #print(index_temp)
+        assert np.array_equal(new_protein_adj, new_protein_adj.T)
+        return new_protein_adj
+
+    def plot_prot_adj(self, tim):
+        adj = self.protein_adjacent_matrix(tim)
+        plt.imshow(adj, cmap="GnBu")
+        plt.colorbar()
+        plt.savefig("protein_adjmat.png")
+        plt.show()
+        return None
 
     #def check_multiplicity(fname, tim, a_part, p_part):
     #    edge_initial = connected_edge(0)
@@ -134,43 +236,4 @@ class h5readEdge( h5readTraj ):
     #    #plt.savefig("r200200_multiple.png")
     #    #plt.show()
     #    return tpcount
-
-#check_multiplicity("v2p424.264phase200_7.h5", 10000, 200, 200)
-#sys.exit()
-#dur = 50
-#iteration = 5
-#x = np.array([1, 2, 3])
-#slaba = np.zeros([iteration, 3])
-#memba = np.zeros([iteration, 3])
-#multibins = [0.5, 1.5, 2.5, 3.5]
-#for k in range(0, iteration):
-#    slab_snap = np.zeros([dur, 3])
-#    memb_snap = np.zeros([dur, 3])
-#    for t in tqdm(range(0, dur)):
-#        slab_snap[t,:], sbins = np.histogram(check_multiplicity("v2p212.132phase50_3_original.h5", t+int(4000+k*dur), 50, 50), bins=multibins)
-#        memb_snap[t,:], mbins = np.histogram(check_multiplicity("v2p212.132phase50_strict.h5", t+int(9000+k*dur), 50, 50), bins=multibins)
-#    slaba[k,:] = np.mean(slab_snap, axis=0)
-#    memba[k,:] = np.mean(memb_snap, axis=0)
-#slab = np.mean(slaba, axis=0)
-#memb = np.mean(memba, axis=0)
-#slabs = np.std(slaba, axis=0)/np.sqrt(iteration)
-#membs = np.std(memba, axis=0)/np.sqrt(iteration)
-##weight1 = np.ones(len(slab))/float(len(slab))
-##weight2 = np.ones(len(memb))/float(len(memb))
-#fig = plt.figure(figsize=[3,3])
-#margin = 0.2
-##slab = np.mean(slab_snap, axis=0)
-##memb = np.mean(memb_snap, axis=0)
-#print(slab, memb)
-##plt.hist([slab, memb], bins=[0.5, 1.5, 2.5, 3.5], stacked=False, label=["3D", "2D"], color=[palette[4], palette[1]])
-#plt.bar(x+margin, memb, color="coral", yerr=slabs, width=margin*2, label="strict")
-#plt.bar(x-margin, slab, color=palette[4], yerr=membs, width=margin*2, label="original")
-#plt.xticks([1,2,3])
-##plt.ylim(0,550)
-#plt.ylabel("Averaged number of molecules", fontsize=11)
-#plt.xlabel("Multiplicity", fontsize=11)
-#plt.legend(framealpha=0)
-#plt.savefig("multiplicity_compare.svg")
-#plt.show()
-
 

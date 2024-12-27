@@ -46,6 +46,16 @@ class h5readCheckpoint:
             filename = os.path.join(dirname, "../mol_settings/2d_settings.json")
             with open(filename) as f:
                 settings = json.load(f)
+        elif dim == 3.5:
+            # custom profiles
+            filename = os.path.join(dirname, "../mol_settings/custom_settings.json")
+            with open(filename) as f:
+                settings = json.load(f)
+        elif dim == "custom":
+            # customr profiles read from json file
+            filename = os.path.join(dirname, "../mol_settings/custom_settings.json")
+            with open(filename) as f:
+                settings = json.load(f)
         else:
             print("Unexpected dimension type")
         self.mlists =  settings["molecule"]
@@ -123,10 +133,33 @@ class h5readCheckpoint:
         # bond potential (hub-kinase)
         system.topologies.configure_harmonic_bond("M", "K0", force_constant=10., length=khdist)
         system.topologies.configure_harmonic_bond("M", "K1", force_constant=10., length=khdist)
+        #system.topologies.configure_harmonic_bond("M", "K2", force_constant=10., length=khdist)
         # bond potential (kinase-kinase)
-        system.topologies.configure_harmonic_bond("K0", "K0", force_constant=10., length=kkdist)
-        system.topologies.configure_harmonic_bond("K1", "K1", force_constant=10., length=kkdist)
-        system.topologies.configure_harmonic_bond("K1", "K0", force_constant=10., length=kkdist)
+        k_pairs = [["K0", "K1"],]
+        #k_pairs = [["K0", "K1"], ["K0", "K2"], ["K1", "K2"]]
+        for k in range(0, len(k_pairs)):
+            system.topologies.configure_harmonic_bond(k_pairs[k][0], k_pairs[k][0], force_constant=10., length=kkdist)
+            system.topologies.configure_harmonic_bond(k_pairs[k][1], k_pairs[k][1], force_constant=10., length=kkdist)
+            system.topologies.configure_harmonic_bond(k_pairs[k][1], k_pairs[k][0], force_constant=10., length=kkdist)
+            # angle potential (kinase-kinase-kinase)
+            system.topologies.configure_harmonic_angle(k_pairs[k][0], k_pairs[k][0], k_pairs[k][0], force_constant=10., equilibrium_angle=2*np.pi/3)
+            system.topologies.configure_harmonic_angle(k_pairs[k][1], k_pairs[k][0], k_pairs[k][0], force_constant=10., equilibrium_angle=2*np.pi/3)
+            system.topologies.configure_harmonic_angle(k_pairs[k][0], k_pairs[k][1], k_pairs[k][0], force_constant=10., equilibrium_angle=2*np.pi/3)
+            system.topologies.configure_harmonic_angle(k_pairs[k][0], k_pairs[k][0], k_pairs[k][1], force_constant=10., equilibrium_angle=2*np.pi/3)
+            system.topologies.configure_harmonic_angle(k_pairs[k][1], k_pairs[k][1], k_pairs[k][0], force_constant=10., equilibrium_angle=2*np.pi/3)
+            system.topologies.configure_harmonic_angle(k_pairs[k][0], k_pairs[k][1], k_pairs[k][1], force_constant=10., equilibrium_angle=2*np.pi/3)
+            system.topologies.configure_harmonic_angle(k_pairs[k][1], k_pairs[k][0], k_pairs[k][1], force_constant=10., equilibrium_angle=2*np.pi/3)
+            system.topologies.configure_harmonic_angle(k_pairs[k][1], k_pairs[k][1], k_pairs[k][1], force_constant=10., equilibrium_angle=2*np.pi/3)
+            # dihedral potential
+            system.topologies.configure_cosine_dihedral(k_pairs[k][0], k_pairs[k][0], k_pairs[k][0], k_pairs[k][0], force_constant=10., multiplicity=1, phi0=0.)
+            system.topologies.configure_cosine_dihedral(k_pairs[k][1], k_pairs[k][0], k_pairs[k][0], k_pairs[k][0], force_constant=10., multiplicity=1, phi0=0.)
+            system.topologies.configure_cosine_dihedral(k_pairs[k][0], k_pairs[k][1], k_pairs[k][0], k_pairs[k][0], force_constant=10., multiplicity=1, phi0=0.)
+            system.topologies.configure_cosine_dihedral(k_pairs[k][1], k_pairs[k][1], k_pairs[k][0], k_pairs[k][0], force_constant=10., multiplicity=1, phi0=0.)
+            system.topologies.configure_cosine_dihedral(k_pairs[k][0], k_pairs[k][1], k_pairs[k][1], k_pairs[k][0], force_constant=10., multiplicity=1, phi0=0.)
+            system.topologies.configure_cosine_dihedral(k_pairs[k][1], k_pairs[k][0], k_pairs[k][1], k_pairs[k][0], force_constant=10., multiplicity=1, phi0=0.)
+            system.topologies.configure_cosine_dihedral(k_pairs[k][1], k_pairs[k][1], k_pairs[k][1], k_pairs[k][0], force_constant=10., multiplicity=1, phi0=0.)
+            system.topologies.configure_cosine_dihedral(k_pairs[k][1], k_pairs[k][1], k_pairs[k][0], k_pairs[k][1], force_constant=10., multiplicity=1, phi0=0.)
+            system.topologies.configure_cosine_dihedral(k_pairs[k][1], k_pairs[k][1], k_pairs[k][1], k_pairs[k][1], force_constant=10., multiplicity=1, phi0=0.)
         # simulation settings
         simulation = system.simulation(kernel="CPU")
         simulation.reaction_handler = "Gillespie"

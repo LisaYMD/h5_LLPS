@@ -257,7 +257,7 @@ class h5readCOM3D( h5readCluster3D ):
         distrib, bins = np.histogram(np.ones(25)*(-1), bins=np.arange(-plot_range, plot_range, int(plot_range/25)))
         distrib_smoothed = np.zeros([len(distrib), len(target_lists)])
         for tim in tqdm(range(start, start+duration)):
-            distrib, bins = self.xyz_slice(tim)
+            distrib, bins = self.xyz_slice(tim, projection)
             for d in range(0, len(distrib)):
                 for tl in range(0, len(target_lists)):
                     if self.types_str[self.types_num.index(distrib[d][0])] == target_lists[tl]:

@@ -48,6 +48,16 @@ class h5readTraj:
             filename = os.path.join(dirname, "../mol_settings/2d_settings.json")
             with open(filename) as f:
                 settings = json.load(f)
+        elif dim == 3.5:
+            # custom profiles
+            filename = os.path.join(dirname, "../mol_settings/custom_settings.json")
+            with open(filename) as f:
+                settings = json.load(f)
+        elif dim == "custom":
+            # customr profiles read from json file
+            filename = os.path.join(dirname, "../mol_settings/custom_settings.json")
+            with open(filename) as f:
+                settings = json.load(f)
         else:
             print("Unexpected dimension type")
         self.mlists =  settings["molecule"]
@@ -285,11 +295,9 @@ class h5readTraj:
             pass
         return radius_lists[1:], gr
 
-
     def relative_distance_from_COM(self, part_str, part_count, tim, com, max_radius=100, radius_slice=0.1, output_distance=True):
         radius_lists = np.arange(0, max_radius, radius_slice)
         coor_list = [-1, 0, 1]
-        mol_size = self.size_list[self.types_str.index(part_str)]
         hist_accuml = np.zeros(radius_lists.shape[0]-1)
         hist_accuml_partave = np.zeros(radius_lists.shape[0]-1)
         # make a group with the same particles
@@ -307,37 +315,34 @@ class h5readTraj:
                 count += 1
         assert count == mol_count*part_count
         # measure the distance between them from one representative particle
-        for p in range(0, len(new_part)):
-            another_part = np.zeros([new_part.shape[0]*27, new_part.shape[1]])
-            for x_ext in range(0, len(coor_list)):
-                for y_ext in range(0, len(coor_list)):
-                    for z_ext in range(0, len(coor_list)):
-                        c = int(x_ext + y_ext*3 + z_ext*9)
-                        start = int(c*len(new_part))
-                        end = int((c+1)*len(new_part))
-                        another_part[start:end,:] = new_part.copy()
-                        another_part[start:end,1] += coor_list[x_ext]*self.xbox
-                        another_part[start:end,2] += coor_list[y_ext]*self.xbox
-                        another_part[start:end,3] += coor_list[z_ext]*self.zbox
-            center_of_mass = np.zeros([1,4])
-            center_of_mass[0,1:4] = com
-            dist = another_part[:,:]-center_of_mass
-            distance = np.zeros([dist.shape[0], 2])
-            distance[:,0] = dist[:,0]
-            distance[:,1] = np.sqrt(dist[:,1]**2+dist[:,2]**2+dist[:,3]**2)
-            dist_final = np.zeros(int(distance.shape[0]/27))
-            for d in range(0, len(dist_final)):
-                target = distance[np.any(np.array([distance[:,0]])==distance[d,0], axis=0)]
-                dist_final[d] = np.amin(target[:,1])
-            for r in range(0, len(radius_lists)-1):
-                minlim = radius_lists[r] - mol_size
-                maxlim = radius_lists[r+1] + mol_size
-                in_range = dist_final[(dist_final>radius_lists[r]-mol_size)&(dist_final<radius_lists[r+1]+mol_size)]
-                hist_accuml[r] = len(in_range)
-            hist_accuml_partave += hist_accuml/len(new_part)
+        another_part = np.zeros([new_part.shape[0]*27, new_part.shape[1]])
+        for x_ext in range(0, len(coor_list)):
+            for y_ext in range(0, len(coor_list)):
+                for z_ext in range(0, len(coor_list)):
+                    c = int(x_ext + y_ext*3 + z_ext*9)
+                    start = int(c*len(new_part))
+                    end = int((c+1)*len(new_part))
+                    another_part[start:end,:] = new_part.copy()
+                    another_part[start:end,1] += coor_list[x_ext]*self.xbox
+                    another_part[start:end,2] += coor_list[y_ext]*self.xbox
+                    another_part[start:end,3] += coor_list[z_ext]*self.zbox
+        center_of_mass = np.zeros([1,4])
+        center_of_mass[0,1:4] = com
+        dist = another_part[:,:]-center_of_mass
+        distance = np.zeros([dist.shape[0], 2])
+        distance[:,0] = dist[:,0]
+        distance[:,1] = np.sqrt(dist[:,1]**2+dist[:,2]**2+dist[:,3]**2)
+        dist_final = np.zeros(int(distance.shape[0]/27))
+        for d in range(0, len(dist_final)):
+            target = distance[np.any(np.array([distance[:,0]])==distance[d,0], axis=0)]
+            dist_final[d] = np.amin(target[:,1])
+        for r in range(0, len(radius_lists)-1):
+            in_range = dist_final[(dist_final>radius_lists[r])&(dist_final<radius_lists[r+1])]
+            hist_accuml[r] = len(in_range)
+        hist_accuml_partave += hist_accuml/len(new_part)
         relative_distance = hist_accuml_partave
         if output_distance == True:
-            return  dist_final
+            return dist_final
         else:
             return radius_lists[1:], relative_distance
 

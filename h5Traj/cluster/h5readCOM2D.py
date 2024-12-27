@@ -178,28 +178,54 @@ class h5readCOM2D( h5readCluster2D ):
             distrib.append([p, hist])
         return distrib, bins
 
-    def xyz_slice(self, tim, projection="z"):
+    def xyz_slice(self, tim, projection="x"):
         center_of_mass, target_rearranged = self.detect_maximum(tim)
         particle_variety = np.unique(target_rearranged[:,5])
         distrib = []
         plot_range = self.xbox/2
         small_slice = 10
         for p in particle_variety:
-            specific_particles = target_rearranged[np.any(np.array([target_rearranged[:,5]])==p, axis=0),:] 
+            specific_particles = target_rearranged[np.any(np.array([target_rearranged[:,5]])==p, axis=0),:]
             if projection == "x":
-                projected = specific_particles[:,1]-center_of_mass[0]
-                target_particles = specific_particles[np.any((np.array([np.abs(specific_particles[:,2]-center_of_mass[1])])<small_slice)&(np.array([np.abs(specific_particles[:,3]-center_of_mass[2])])<small_slice), axis=0),:] 
+                target_particles = specific_particles[np.abs(specific_particles[:,2]-center_of_mass[1])<small_slice,:]
+                projected = target_particles[:,1]-center_of_mass[0]
             elif projection == "y":
-                projected = specific_particles[:,2]-center_of_mass[1]
-                target_particles = specific_particles[np.any((np.array([np.abs(specific_particles[:,3]-center_of_mass[2])])<small_slice)&(np.array([np.abs(specific_particles[:,1]-center_of_mass[0])])<small_slice), axis=0),:] 
-            elif projection == "z":
-                target_particles = specific_particles[np.any((np.array([np.abs(specific_particles[:,2]-center_of_mass[1])])<small_slice)&(np.array([np.abs(specific_particles[:,1]-center_of_mass[0])])<small_slice), axis=0),:] 
-                projected = target_particles[:,3]-center_of_mass[2]
+                target_particles = specific_particles[np.abs(specific_particles[:,1]-center_of_mass[0])<small_slice,:]
+                projected = target_particles[:,2]-center_of_mass[1]
             else:
                 print("INVALID PROJECTION DIRECTION: Please try again.")
                 sys.exit()
             hist, bins = np.histogram(projected, bins=np.arange(-plot_range, plot_range, int(plot_range/25)))
             distrib.append([p, hist])
+        return distrib, bins
+
+    def relative_xy_slice(self, tim, projection="x"):
+        small_slice = 10
+        cluster_list, cluster_dict, cluster_com = self.detect_all(tim)
+        distrib = {}
+        for current in cluster_list:
+            center_of_mass = cluster_com[str(current)]
+            target_rearranged = cluster_dict[str(current)]
+            if len(target_rearranged) > 200: # Extract only large cluster with more than 100 particles
+                radius_of_gyration = center_of_mass[2]
+                particle_variety = np.unique(target_rearranged[:,5])
+                for p in particle_variety:
+                    specific_particles = target_rearranged[np.any(np.array([target_rearranged[:,5]])==p, axis=0),:] 
+                    if projection == "x":
+                        target_particles = specific_particles[np.abs(specific_particles[:,2]-center_of_mass[1])<small_slice,:] 
+                        projected = target_particles[:,1]-center_of_mass[0]
+                    elif projection == "y":
+                        target_particles = specific_particles[np.abs(specific_particles[:,1]-center_of_mass[0])<small_slice,:]
+                        projected = target_particles[:,2]-center_of_mass[1]
+                    else:
+                        print("INVALID PROJECTION DIRECTION: Please try again.")
+                        sys.exit()
+                    hist, bins = np.histogram(projected/radius_of_gyration, bins=np.arange(-2.0, 2.0, 2.0*2/50))
+                    #print(p, hist)
+                    if str(p) in distrib:
+                        distrib[str(p)] += hist
+                    else:
+                        distrib[str(p)] = hist
         return distrib, bins
 
     def plot_projection(self, tim, specific=True, projection="x"):
@@ -257,7 +283,7 @@ class h5readCOM2D( h5readCluster2D ):
         plt.show()
         return None
 
-    def smooth_slice(self, start, duration, target_lists, color_lists, pngname, projection="z"):
+    def smooth_slice(self, start, duration, target_lists, color_lists, pngname, projection="y"):
         # apply distribution to distance_distribution in each timestep
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -274,13 +300,42 @@ class h5readCOM2D( h5readCluster2D ):
             hist = distrib_smoothed[:,tl]
             ax.plot(bins[:-1], hist/np.sum(hist), label=target_lists[tl], color=color_lists[tl])
             newarray = np.vstack([[bins[:-1]], [hist/np.sum(hist)]])
-            #np.savetxt("data"+pngname+target_lists[tl]+".dat", newarray.T)
-            np.savetxt("distrib"+pngname+target_lists[tl]+".dat", hist)
+            np.savetxt("data"+pngname+target_lists[tl]+".dat", newarray.T)
+            #np.savetxt("distrib"+pngname+target_lists[tl]+".dat", hist)
         ax.legend()
         plt.savefig(pngname)
         plt.show()
         return None
 
+    def smooth_relative_slice(self, start, duration, target_lists, color_lists, pngname, projection="x"):
+        # apply distribution to distance_distribution in each timestep
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        plot_range = 2.0
+        distrib, bins = np.histogram(np.ones(25)*(-1), bins=np.arange(-plot_range, plot_range, plot_range*2/50))
+        distrib_smoothed = np.zeros([len(distrib), len(target_lists)])
+        for tim in tqdm(range(start, start+duration)):
+            distrib, bins = self.relative_xy_slice(tim, projection)
+            #print(distrib["0.0"])
+            ### write again from distrib(list) to distrib(dict) ###
+            keys = list(distrib.keys())
+            distrib_keys = [float(s) for s in keys]
+            #print(distrib_keys)
+            for d in range(0, len(distrib)):
+                for tl in range(0, len(target_lists)):
+                    #print(distrib_keys[d])
+                    #print(int(distrib_keys[d]))
+                    if self.types_str[self.types_num.index(int(distrib_keys[d]))] == target_lists[tl]:
+                        distrib_smoothed[:,tl] += distrib[str(distrib_keys[d])] ## problem here
+                        #print(distrib_smoothed[:,tl])
+        for tl in range(0, len(target_lists)):
+            hist = distrib_smoothed[:,tl]
+            ax.plot(bins[:-1], hist/np.sum(hist), label=target_lists[tl], color=color_lists[tl])
+            newarray = np.vstack([[bins[:-1]], [hist/np.sum(hist)]])
+            np.savetxt("data"+pngname+target_lists[tl]+".dat", newarray.T)
+        ax.legend()
+        plt.savefig(pngname)
+        return None
 
     def draw_snapshot(self, tim, mol="whole", mol_str="all", part_in_mol=1):
         if mol != "whole":
